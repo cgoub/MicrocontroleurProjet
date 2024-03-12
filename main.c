@@ -112,13 +112,13 @@ int main(void)
                     char c = toupper(data[i]); // Convertir en majuscule
                     const char* morse = ConvMorse(c); // Convertir le caractère en Morse
 
-                    // Envoyer le son Morse via le buzzer
-                    sendMorseSound(morse);
                 }
 
 	  if(mode == 1){
 		  /* CODE SON */
 	      //HAL_UART_Transmit(&huart2,(uint8_t *) "son\r\n",20,50);
+          // Envoyer le son Morse via le buzzer
+            sendMorseSound(morse);
 
 	  }
 	  else{
