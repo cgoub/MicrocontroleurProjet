@@ -102,32 +102,28 @@ int main(void)
     /* USER CODE END WHILE */
 	 Switch_Mode(); // Mettre à jour le mode
 
-	  if(mode == 1){
-      /* CODE SON */
-      // Attendre la réception des données via UART
-      HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, data, 20, 5000); // Attendre jusqu'à 5 secondes pour la réception
+    // Attendre la réception des données via UART
+    HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, data, 20, 5000); // Attendre jusqu'à 5 secondes pour la réception
 
-      if (status == HAL_OK) {
-          // Traiter les données reçues
-          for(int i = 0; i < 20; i++) { // Parcourir tout le buffer de données reçues
-              if (data[i] != '\0') { // Vérifier si le caractère est valide
-                  char c = toupper(data[i]); // Convertir en majuscule
-                  const char* morse = ConvMorse(c); // Convertir le caractère en Morse
-
-                  // Envoyer le son Morse via le buzzer
-                  sendMorseSound(morse);
-              }
+    if (status == HAL_OK) {
+      // Traiter les données reçues
+      for(int i = 0; i < 20; i++) { // Parcourir tout le buffer de données reçues
+        if (data[i] != '\0') { // Vérifier si le caractère est valide
+          char c = toupper(data[i]); // Convertir en majuscule
+          const char* morse = ConvMorse(c); // Convertir le caractère en Morse
+          if(mode == 1){
+            // Envoyer le son Morse via le buzzer
+            sendMorseSound(morse);
           }
+          else{
+		        /* CODE INFRAROUGE */
+          }
+        }
       }
-	  }
-	  else{
-		  /* CODE INFRAROUGE */
-	      //HAL_UART_Transmit(&huart2,(uint8_t *) "infra\r\n",20,50);
-	  }
-
-	  /* USER CODE BEGIN 3 */
+      /* USER CODE BEGIN 3 */
+    }
+    /* USER CODE END 3 */
   }
-  /* USER CODE END 3 */
 }
 
 void Switch_Mode(void){
