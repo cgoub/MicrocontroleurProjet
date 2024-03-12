@@ -118,7 +118,7 @@ int main(void)
 		  /* CODE SON */
 	      //HAL_UART_Transmit(&huart2,(uint8_t *) "son\r\n",20,50);
           // Envoyer le son Morse via le buzzer
-            sendMorseSound(morse);
+            SonMorse(morse);
 
 	  }
 	  else{
