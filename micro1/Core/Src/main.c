@@ -58,8 +58,8 @@ static void MX_USART2_UART_Init(void);
 static void MX_DAC_Init(void);
 /* USER CODE BEGIN PFP */
 void Switch_Mode(void);
-void convertToMorse(const char*, char* , int );
-void transmitMorse(const char*);
+void convertToMorse(char*, char* , int );
+void transmitMorse(char*);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -100,19 +100,19 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  char receivedMessage[100];
-  char morseCode[500];
+  char receivedMessage[100]="";
+  char morseCode[500]="";
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1){
       /* USER CODE END WHILE */
   	  //Switch_Mode();
-  	  //HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,100,5000);
+  	  HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,100,5000);
 
-  	  //convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
+  	  convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
 
-  	  convertToMorse("Hello CY", morseCode, sizeof(morseCode));
+  	  //convertToMorse("RAMADAN", morseCode, sizeof(morseCode));
 	  transmitMorse(morseCode);
 
   	  if(mode == 1){
@@ -147,7 +147,7 @@ void Switch_Mode(void){
 	}
 }
 
-void convertToMorse(const char* message, char* morseCode, int maxLength)
+void convertToMorse(char* message, char* morseCode, int maxLength)
 {
     // Define the Morse code alphabet
     const char* morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
@@ -188,7 +188,7 @@ void convertToMorse(const char* message, char* morseCode, int maxLength)
     }
 }
 
-void transmitMorse(const char* morseCode){
+void transmitMorse(char* morseCode){
     // Implement Morse code transmission logic here
     // You need to control the buzzer to produce the Morse code signals
     // Adjust the delay according to Morse code timing
