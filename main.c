@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +43,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+DAC_HandleTypeDef hdac;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -51,8 +55,11 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_DAC_Init(void);
 /* USER CODE BEGIN PFP */
 void Switch_Mode(void);
+void convertToMorse(const char*, char* , int );
+void transmitMorse(const char*);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -67,9 +74,6 @@ void Switch_Mode(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
-	char data[20]="";
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -91,46 +95,43 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_DAC_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
+  char receivedMessage[100];
+  char morseCode[500];
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-	 Switch_Mode(); // Mettre à jour le mode
+  while (1){
+      /* USER CODE END WHILE */
+  	  //Switch_Mode();
+  	  //HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,100,5000);
 
-        // Attendre la réception des données via UART
-        HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, data, 20, 5000); // Attendre jusqu'à 5 secondes pour la réception
+  	  //convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
 
-        if (status == HAL_OK) {
-            // Traiter les données reçues
-            for(int i = 0; i < 20; i++) { // Parcourir tout le buffer de données reçues
-                if (data[i] != '\0') { // Vérifier si le caractère est valide
-                    char c = toupper(data[i]); // Convertir en majuscule
-                    const char* morse = ConvMorse(c); // Convertir le caractère en Morse
+  	  convertToMorse("Hello CY", morseCode, sizeof(morseCode));
+	  transmitMorse(morseCode);
 
-                }
+  	  if(mode == 1){
+  		  /* CODE SON */
+  	      //HAL_UART_Transmit(&huart2,(uint8_t *) "son\r\n",20,50);
+  	  	  //convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
+  	  	  //transmitMorse(morseCode);
 
-	  if(mode == 1){
-		  /* CODE SON */
-	      //HAL_UART_Transmit(&huart2,(uint8_t *) "son\r\n",20,50);
-          // Envoyer le son Morse via le buzzer
-            SonMorse(morse);
+  	  }
+  	  else{
+  		  /* CODE INFRAROUGE */
+  	      //HAL_UART_Transmit(&huart2,(uint8_t *) "infra\r\n",20,50);
+  	  }
+  	  HAL_Delay(3000);
 
-	  }
-	  else{
-		  /* CODE INFRAROUGE */
-	      //HAL_UART_Transmit(&huart2,(uint8_t *) "infra\r\n",20,50);
-	  }
-
-	  /* USER CODE BEGIN 3 */
+  	  /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
-      }
-  }
+}
 
 void Switch_Mode(void){
 	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0 && mode == 0){
@@ -144,6 +145,75 @@ void Switch_Mode(void){
 	if(mode == 1){
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	}
+}
+
+void convertToMorse(const char* message, char* morseCode, int maxLength)
+{
+    // Define the Morse code alphabet
+    const char* morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
+                              ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-",
+                              ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+                              "-----", ".----", "..---", "...--", "....-", ".....", "-....",
+                              "--...", "---..", "----."};
+
+    // Iterate through the message characters
+    int morseIndex = 0; // Index to write into the morseCode array
+
+    for (int i = 0; message[i] != '\0' && morseIndex < maxLength - 5; i++) { // Adjusted to avoid buffer overflow
+        // Get the uppercase representation of the character
+        char uppercaseChar = toupper(message[i]);
+
+        // If it's a space, add a space to the Morse code
+        if (uppercaseChar == ' ') {
+            strcat(morseCode, " / "); // Use '/' to represent word spacing
+            morseIndex += 3; // Move to the next position in morseCode
+        }
+        else if (isalnum(uppercaseChar)) {
+            // Check if it's an alphanumeric character
+            if (isalpha(uppercaseChar)) {
+                // Convert letters to Morse code
+                int index = uppercaseChar - 'A'; // Index for Morse code lookup
+                strcat(morseCode, morseAlphabet[index]);
+                morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+            } else if (isdigit(uppercaseChar)) {
+                // Convert digits to Morse code
+                int index = uppercaseChar - '0' + 26; // Index for Morse code lookup
+                strcat(morseCode, morseAlphabet[index]);
+                morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+            }
+            // Add a space after each Morse code character
+            strcat(morseCode, " ");
+            morseIndex += 1; // Move to the next position in morseCode
+        }
+    }
+}
+
+void transmitMorse(const char* morseCode){
+    // Implement Morse code transmission logic here
+    // You need to control the buzzer to produce the Morse code signals
+    // Adjust the delay according to Morse code timing
+
+    int i = 0;
+    while (morseCode[i] != '\0') {
+        if (morseCode[i] == '.') {
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET); // Turn on buzzer for dot
+            HAL_Delay(100); // Adjust delay for dot
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET); // Turn off buzzer
+            HAL_Delay(500); // Delay between dot and next signal
+        } else if (morseCode[i] == '-') {
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET); // Turn on buzzer for dash
+            HAL_Delay(300); // Adjust delay for dash
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET); // Turn off buzzer
+            HAL_Delay(500); // Delay between dash and next signal
+        } else if (morseCode[i] == ' ') {
+            // Delay for character gap
+            HAL_Delay(1000); // Adjust delay for character gap
+        } else if (morseCode[i] == '/') {
+            // Delay for word gap
+            HAL_Delay(700); // Adjust delay for word gap
+        }
+        i++;
+    }
 }
 
 /**
@@ -191,6 +261,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief DAC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC_Init(void)
+{
+
+  /* USER CODE BEGIN DAC_Init 0 */
+
+  /* USER CODE END DAC_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC_Init 1 */
+
+  /* USER CODE END DAC_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac.Instance = DAC;
+  if (HAL_DAC_Init(&hdac) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC_Init 2 */
+
+  /* USER CODE END DAC_Init 2 */
+
 }
 
 /**
@@ -244,20 +354,20 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5|GPIO_PIN_7, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : Blue_button_Pin */
-  GPIO_InitStruct.Pin = Blue_button_Pin;
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Blue_button_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : PA5 PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -298,77 +408,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
- 
- 
- 
- 
- const char* ConvMorse(char c) {
-    switch(c) {
-        case 'A': return ".-";
-        case 'B': return "-...";
-        case 'C': return "-.-.";
-        case 'D': return "-..";
-        case 'E': return ".";
-        case 'F': return "..-.";
-        case 'G': return "--.";
-        case 'H': return "....";
-        case 'I': return "..";
-        case 'J': return ".---";
-        case 'K': return "-.-";
-        case 'L': return ".-..";
-        case 'M': return "--";
-        case 'N': return "-.";
-        case 'O': return "---";
-        case 'P': return ".--.";
-        case 'Q': return "--.-";
-        case 'R': return ".-.";
-        case 'S': return "...";
-        case 'T': return "-";
-        case 'U': return "..-";
-        case 'V': return "...-";
-        case 'W': return ".--";
-        case 'X': return "-..-";
-        case 'Y': return "-.--";
-        case 'Z': return "--..";
-        case '0': return "-----";
-        case '1': return ".----";
-        case '2': return "..---";
-        case '3': return "...--";
-        case '4': return "....-";
-        case '5': return ".....";
-        case '6': return "-....";
-        case '7': return "--...";
-        case '8': return "---..";
-        case '9': return "----.";
-        default: return ""; // Caractère non supporté
-    }
-}
- 
-
-void SonMorse (const char* morse) {
-    for(int i = 0; morse[i] != '\0'; i++) {
-        switch(morse[i]) {
-            case '.':
-                // Activer le buzzer pendant la durée d'un point
-                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET); // Activer le buzzer
-                HAL_Delay(DOT_DURATION);
-                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET); // Désactiver le buzzer
-                HAL_Delay(ELEMENT_SPACE_DURATION); // Pause entre les éléments
-                break;
-            case '-':
-                // Activer le buzzer pendant la durée d'un tiret
-                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET); // Activer le buzzer
-                HAL_Delay(DASH_DURATION);
-                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET); // Désactiver le buzzer
-                HAL_Delay(ELEMENT_SPACE_DURATION); // Pause entre les éléments
-                break;
-            case ' ':
-                // Pause entre les lettres
-                HAL_Delay(LETTER_SPACE_DURATION);
-                break;
-            default:
-                // Ignorer les autres caractères
-                break;
-        }
-    }
-}
