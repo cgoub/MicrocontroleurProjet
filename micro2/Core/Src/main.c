@@ -117,11 +117,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
       {
-
+	  HAL_ADC_Start(&hadc3);
           /* Check for sound signal */
-          //if (isSoundSignalDetected()) {
+          if (isSoundSignalDetected()) {
 
               //HAL_UART_Transmit(&huart2, (uint8_t *) "bonjour2", 8, 20);
               /* Record start time of signal */
@@ -148,11 +149,11 @@ int main(void)
               }
 
               /* Decode Morse code message */
-              decodeMorse(mess, 2);
+              decodeMorse(rx_buffer, 1);
 
               /* Echo received data back */
-              HAL_UART_Transmit(&huart2, (uint8_t *)mess, 1, HAL_MAX_DELAY);
-          //}
+              HAL_UART_Transmit(&huart2, rx_buffer, 1, HAL_MAX_DELAY);
+          }
       }
   }
 
@@ -240,7 +241,6 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
   }
-
 
 /**
   * @brief System Clock Configuration
@@ -397,15 +397,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_5;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
