@@ -31,6 +31,8 @@ int rx_index =0;
 uint32_t startTime=0, notStartTime=0;
 uint32_t endTime= 0;
 uint32_t duration=0;
+
+int haveConverted = 0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,7 +97,6 @@ uint8_t isSoundSignalDetected();
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -118,7 +119,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
-
+	printf("The program has correctly been loaded.\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -126,22 +127,32 @@ int main(void)
 
   while (1)
       {
-	  HAL_ADC_Start(&hadc3);
-	  HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY);
+      notStartTime = HAL_GetTick();
+      int silence_duration = notStartTime - endTime;
+      if (!haveConverted && (silence_duration >= PAUSE_THRESHOLD || rx_index >= sizeof(rx_buffer)))
+      {
+
+          // Decode the Morse code character
+          decodeMorse(rx_buffer, rx_index);
+          // Reset the message buffer index
+
+          for(int i=0;i<rx_index;i++){
+              rx_buffer[i] = "";
+          }
+          rx_index = 0;
+          haveConverted = 1;
+      }
           /* Check for sound signal */
           if (isSoundSignalDetected()) {
-
+        	  haveConverted = 0;
               //HAL_UART_Transmit(&huart2, (uint8_t *) "bonjour2", 8, 20);
               /* Record start time of signal */
-              notStartTime = HAL_GetTick();
-              int silence_duration = notStartTime - endTime;
 
               if(silence_duration>500){
             	  startTime = notStartTime;
+              } else {
+            	  rx_index--;
               }
-
-              /* Wait for sound signal to end */
-              HAL_ADC_Stop(&hadc3);
               //int i=0;
               //HAL_ADC_Start(&hadc3);
               //adc_valuePre = adc_value;
@@ -161,7 +172,6 @@ int main(void)
               //printf("end : %ld\r\n", endTime);
               /* Calculate duration of signal */
               duration = (endTime - startTime);
-              printf("duration : %ld, silence_duration = %d\r\n", duration, silence_duration);
               if (duration < DOT_THRESHOLD)
               {
             	  rx_buffer[rx_index] = '.';
@@ -177,16 +187,10 @@ int main(void)
 				  rx_buffer[rx_index] = ' ';
 				  rx_index++;
 			  }
-              //printf("%s\r\n", rx_buffer);
+             //printf("%s\r\n", rx_buffer);
 
               // Check if the Morse code character is complete
-              if (silence_duration >= PAUSE_THRESHOLD || rx_index >= sizeof(rx_buffer))
-              {
-                  // Decode the Morse code character
-                  decodeMorse(rx_buffer, rx_index);
-                  // Reset the message buffer index
-                  rx_index = 0;
-              }
+
           }
           //decodeMorse(rx_buffer, rx_index);
           HAL_Delay(2);
@@ -196,9 +200,15 @@ int main(void)
 
   /* Function to detect the presence of a sound signal */
   uint8_t isSoundSignalDetected() {
+	  	HAL_ADC_Start(&hadc3);
+	  	HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY);
+
 	    // Read the analog input from the sound sensor using the ADC
 		//HAL_ADC_PollForConversion(&hadc3, 100);
 	    adc_value = HAL_ADC_GetValue(&hadc3);//* (5.0 / 1023.0); // Example ADC reading
+
+        /* Wait for sound signal to end */
+        HAL_ADC_Stop(&hadc3);
 
 	    // Analyze the ADC value to determine if a sound signal is detected
 	    if (adc_value < THRESHOLD_low || adc_value > THRESHOLD_high) {
@@ -231,11 +241,10 @@ int main(void)
   void decodeMorse(char *message, int length)
   {
       //printf("%s\r\n", message);
-      char *morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
-                               ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-",
-                               ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
-                               "-----", ".----", "..---", "...--", "....-", ".....", "-....",
-                               "--...", "---..", "----."};
+	  char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
+			    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
+			    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
+			    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
 
       char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
