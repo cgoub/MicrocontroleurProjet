@@ -23,8 +23,14 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* Buffer to store received data */
-uint8_t rx_buffer[100];
-uint8_t received_byte;
+/* Buffer to store received data */
+char rx_buffer[100] = "";
+uint16_t adc_value = 0;
+uint8_t received_byte = 0;
+int rx_index =0;
+uint32_t startTime=0, notStartTime=0;
+uint32_t endTime= 0;
+uint32_t duration=0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,10 +77,11 @@ printf
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 /* USER CODE END 0 */
-#define DOT_THRESHOLD 100
-#define DASH_THRESHOLD 300
-#define PAUSE_THRESHOLD 500
-#define THRESHOLD 1000
+#define DOT_THRESHOLD   110     // Adjust according to your requirements
+#define DASH_THRESHOLD  310     // Adjust according to your requirements
+#define PAUSE_THRESHOLD 700
+#define THRESHOLD_low (uint16_t)1300
+#define THRESHOLD_high (uint16_t)1700
 
 
 void decodeMorse(char* message, int length);
@@ -88,14 +95,13 @@ uint8_t isSoundSignalDetected();
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	char mess[1]="";
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -121,57 +127,89 @@ int main(void)
   while (1)
       {
 	  HAL_ADC_Start(&hadc3);
+	  HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY);
           /* Check for sound signal */
           if (isSoundSignalDetected()) {
 
               //HAL_UART_Transmit(&huart2, (uint8_t *) "bonjour2", 8, 20);
               /* Record start time of signal */
-              uint32_t startTime = HAL_GetTick();
+              notStartTime = HAL_GetTick();
+              int silence_duration = notStartTime - endTime;
+
+              if(silence_duration>500){
+            	  startTime = notStartTime;
+              }
 
               /* Wait for sound signal to end */
-              while (isSoundSignalInProgress()) {
-                  // Check if sound signal ended
-              }
+              HAL_ADC_Stop(&hadc3);
+              //int i=0;
+              //HAL_ADC_Start(&hadc3);
+              //adc_valuePre = adc_value;
+			  while (adc_value < THRESHOLD_low || adc_value > THRESHOLD_high) {
+				  // Check if sound signal ended
+				HAL_ADC_Start(&hadc3);
+				HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY);
+				adc_value = HAL_ADC_GetValue(&hadc3);//* (5.0 / 1023.0);
+				//HAL_Delay(100);
+				//printf("%d\r\n",adc_value);
+			  }
+
 
               /* Record end time of signal */
-              uint32_t endTime = HAL_GetTick();
-
+              endTime = HAL_GetTick();
+              //printf("start : %ld\r\n", startTime);
+              //printf("end : %ld\r\n", endTime);
               /* Calculate duration of signal */
-              uint32_t duration = endTime - startTime;
+              duration = (endTime - startTime);
+              printf("duration : %ld, silence_duration = %d\r\n", duration, silence_duration);
+              if (duration < DOT_THRESHOLD)
+              {
+            	  rx_buffer[rx_index] = '.';
+            	  rx_index++;
+			  }
+			  else if (duration < DASH_THRESHOLD)
+			  {
+				  rx_buffer[rx_index] = '-';
+				  rx_index++;
+			  }
+			  else if (duration < PAUSE_THRESHOLD)
+			  {
+				  rx_buffer[rx_index] = ' ';
+				  rx_index++;
+			  }
+              //printf("%s\r\n", rx_buffer);
 
-              /* Decode duration into Morse code */
-              if (duration < DOT_THRESHOLD) {
-            	  mess[0] = '.';
-              } else if (duration < DASH_THRESHOLD) {
-            	  mess[0] = '-';
-              } else if (duration < PAUSE_THRESHOLD) {
-            	  mess[0] = ' ';
+              // Check if the Morse code character is complete
+              if (silence_duration >= PAUSE_THRESHOLD || rx_index >= sizeof(rx_buffer))
+              {
+                  // Decode the Morse code character
+                  decodeMorse(rx_buffer, rx_index);
+                  // Reset the message buffer index
+                  rx_index = 0;
               }
-
-              /* Decode Morse code message */
-              decodeMorse(rx_buffer, 1);
-
-              /* Echo received data back */
-              HAL_UART_Transmit(&huart2, rx_buffer, 1, HAL_MAX_DELAY);
           }
+          //decodeMorse(rx_buffer, rx_index);
+          HAL_Delay(2);
+          HAL_ADC_Stop(&hadc3);
       }
   }
 
   /* Function to detect the presence of a sound signal */
   uint8_t isSoundSignalDetected() {
-      // Read the analog input from the sound sensor using the ADC
-      uint16_t adc_value = HAL_ADC_GetValue(&hadc3); // Example ADC reading
+	    // Read the analog input from the sound sensor using the ADC
+		//HAL_ADC_PollForConversion(&hadc3, 100);
+	    adc_value = HAL_ADC_GetValue(&hadc3);//* (5.0 / 1023.0); // Example ADC reading
 
-      // Analyze the ADC value to determine if a sound signal is detected
-      if (adc_value > THRESHOLD) {
-          return 1; // Sound signal detected
-      } else {
-          return 0; // No sound signal detected
-      }
+	    // Analyze the ADC value to determine if a sound signal is detected
+	    if (adc_value < THRESHOLD_low || adc_value > THRESHOLD_high) {
+	        return 1; // Sound signal detected
+	    } else {
+	        return 0; // No sound signal detected
+	    }
   }
 
   /* Function to check if the sound signal is still in progress */
-  uint8_t isSoundSignalInProgress() {
+  /*uint8_t isSoundSignalInProgress() {
       // While the sound signal is detected, continuously sample the analog input
       while (isSoundSignalDetected()) {
           // Read the analog input from the sound sensor using the ADC
@@ -187,50 +225,49 @@ int main(void)
       }
 
       return 0; // Sound signal ended
-  }
+  }*/
 
 
-  void decodeMorse(char* message, int length) {
-      // Define the Morse code alphabet
-      char* morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
-                                ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-",
-                                ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
-                                "-----", ".----", "..---", "...--", "....-", ".....", "-....",
-                                "--...", "---..", "----."};
+  void decodeMorse(char *message, int length)
+  {
+      //printf("%s\r\n", message);
+      char *morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
+                               ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-",
+                               ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+                               "-----", ".----", "..---", "...--", "....-", ".....", "-....",
+                               "--...", "---..", "----."};
 
-      // Define the corresponding characters for each Morse code
       char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-      // Loop through the message
-      for (int i = 0; i < length; i++) {
-          // If the current character is a dot, dash, or space, process it
-          if (message[i] == '.' || message[i] == '-') {
-              int j = i + 1;
-              // Find the end of the current Morse code character
-              while (j < length && message[j] != ' ') {
-                  j++;
-              }
-              // Extract the Morse code character
-              char morseChar[j - i + 1];
-              strncpy(morseChar, &message[i], j - i);
-              morseChar[j - i] = '\0';
+      char decoded_message[length + 1]; // Maximum possible length of decoded message
 
-              // Decode the Morse code character
-              for (int k = 0; k < 36; k++) {
-                  if (strcmp(morseChar, morseAlphabet[k]) == 0) {
-                      // Print or store the decoded character
-                      printf("%c", alphabet[k]);
+      int decoded_index = 0; // Index to keep track of the position in the decoded message
+
+      for (int i = 0; i <= length; i++)
+      {
+          if (message[i] == ' ' || message[i] == '\0') // Check for space or end of string
+          {
+              // Indicates the end of a Morse code character
+              decoded_message[decoded_index] = '\0'; // Null terminate the decoded message
+              for (int j = 0; j < sizeof(morseAlphabet) / sizeof(morseAlphabet[0]); j++)
+              {
+                  if (strcmp(decoded_message, morseAlphabet[j]) == 0) // Compare using strcmp
+                  {
+                      // Store the corresponding character
+                      printf("%c", alphabet[j]);
+                      decoded_index = 0;
                       break;
                   }
               }
-              i = j; // Move the index to the next character
-          } else if (message[i] == ' ') {
-              // Print or store a space between words
-              printf(" ");
+          }
+          else
+          {
+              decoded_message[decoded_index++] = message[i];
           }
       }
-      printf("\n"); // Print a newline at the end of the message
+      printf("\r\n");
   }
+
 
 
   PUTCHAR_PROTOTYPE

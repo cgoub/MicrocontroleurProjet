@@ -30,6 +30,8 @@
 /* USER CODE BEGIN PTD */
 
 	int mode=0; // 0 = mode infrarouge, 1 = mode sonore
+	char receivedMessage[10]="";
+	char morseCode[50]="";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -59,11 +61,13 @@ static void MX_DAC_Init(void);
 /* USER CODE BEGIN PFP */
 void Switch_Mode(void);
 void convertToMorse(char*, char* , int );
-void transmitMorse(char*);
+void transmitMorse(char*, uint16_t);
+//void HAL_UART_RxCpltCallback(UART_HandleTypeDef );
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 
 /* USER CODE END 0 */
 
@@ -98,35 +102,35 @@ int main(void)
   MX_DAC_Init();
   /* USER CODE BEGIN 2 */
 
+  //HAL_UART_Receive_IT(&huart2, (uint8_t *) receivedMessage, 10);
   /* USER CODE END 2 */
 
-  char receivedMessage[100]="";
-  char morseCode[500]="";
+
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1){
       /* USER CODE END WHILE */
-  	  //Switch_Mode();
-  	  HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,100,5000);
+  	  Switch_Mode();
 
+  	  //HAL_UART_Receive_IT(&huart2,(uint8_t *) receivedMessage,10);
+
+  	  HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,10,5000);
+  	  Switch_Mode();
   	  convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
 
-  	  //convertToMorse("RAMADAN", morseCode, sizeof(morseCode));
-	  transmitMorse(morseCode);
+  	  transmitMorse(morseCode,GPIO_PIN_7);
 
   	  if(mode == 1){
   		  /* CODE SON */
-  	      //HAL_UART_Transmit(&huart2,(uint8_t *) "son\r\n",20,50);
-  	  	  //convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
-  	  	  //transmitMorse(morseCode);
+  	  	  //transmitMorse(morseCode,GPIO_PIN_7);
 
   	  }
   	  else{
   		  /* CODE INFRAROUGE */
-  	      //HAL_UART_Transmit(&huart2,(uint8_t *) "infra\r\n",20,50);
+  	  	  //transmitMorse(morseCode,GPIO_PIN_6);
   	  }
-  	  HAL_Delay(3000);
+  	  //HAL_Delay(3000);
 
   	  /* USER CODE BEGIN 3 */
   }
@@ -186,9 +190,10 @@ void convertToMorse(char* message, char* morseCode, int maxLength)
             morseIndex += 1; // Move to the next position in morseCode
         }
     }
+    //HAL_Delay(3000);
 }
 
-void transmitMorse(char* morseCode){
+void transmitMorse(char* morseCode,uint16_t pin){
     // Implement Morse code transmission logic here
     // You need to control the buzzer to produce the Morse code signals
     // Adjust the delay according to Morse code timing
@@ -196,14 +201,14 @@ void transmitMorse(char* morseCode){
     int i = 0;
     while (morseCode[i] != '\0') {
         if (morseCode[i] == '.') {
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET); // Turn on buzzer for dot
+            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dot
             HAL_Delay(100); // Adjust delay for dot
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET); // Turn off buzzer
+            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
             HAL_Delay(500); // Delay between dot and next signal
         } else if (morseCode[i] == '-') {
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET); // Turn on buzzer for dash
+            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dash
             HAL_Delay(300); // Adjust delay for dash
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET); // Turn off buzzer
+            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
             HAL_Delay(500); // Delay between dash and next signal
         } else if (morseCode[i] == ' ') {
             // Delay for character gap
@@ -214,6 +219,11 @@ void transmitMorse(char* morseCode){
         }
         i++;
     }
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  HAL_UART_Receive_IT(&huart2, (uint8_t *) receivedMessage, 10);
 }
 
 /**
@@ -354,7 +364,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -362,8 +372,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA5 PA7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_7;
+  /*Configure GPIO pins : PA5 PA6 PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
