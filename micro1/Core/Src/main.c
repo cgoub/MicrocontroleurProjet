@@ -29,9 +29,6 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-	int mode=0; // 0 = mode infrarouge, 1 = mode sonore
-	char receivedMessage[10]="";
-	char morseCode[50]="";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -46,10 +43,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 DAC_HandleTypeDef hdac;
-
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+int MODE = 0;
+char receivedMessage[10]="";
+char morseCode[50]="";
 
 /* USER CODE END PV */
 
@@ -62,6 +61,7 @@ static void MX_DAC_Init(void);
 void Switch_Mode(void);
 void convertToMorse(char*, char* , int );
 void transmitMorse(char*, uint16_t);
+void init(char* ,int );
 //void HAL_UART_RxCpltCallback(UART_HandleTypeDef );
 /* USER CODE END PFP */
 
@@ -102,128 +102,110 @@ int main(void)
   MX_DAC_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_UART_Receive_IT(&huart2, (uint8_t *) receivedMessage, 10);
-  /* USER CODE END 2 */
+    //HAL_UART_Receive_IT(&huart2, (uint8_t *) receivedMessage, 10);
+    /* USER CODE END 2 */
 
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1){
+        /* USER CODE END WHILE */
 
+    	/* réception du message */
+    	init(receivedMessage,10);
+    	HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,10,5000);
+    	if(receivedMessage[0]!='\0'){
+        	init(morseCode,50);
+        	convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
+    	}
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1){
-      /* USER CODE END WHILE */
-  	  Switch_Mode();
+    	if(MODE==1){
+    		/* CODE SON */
+    		transmitMorse(morseCode,GPIO_PIN_7);
+    	}
+    	else{
+    		/* CODE INFRAROUGE */
+    		transmitMorse(morseCode,GPIO_PIN_6);
+    	}
 
-  	  //HAL_UART_Receive_IT(&huart2,(uint8_t *) receivedMessage,10);
-
-  	  HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,10,5000);
-  	  Switch_Mode();
-  	  convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
-
-  	  transmitMorse(morseCode,GPIO_PIN_7);
-
-  	  if(mode == 1){
-  		  /* CODE SON */
-  	  	  //transmitMorse(morseCode,GPIO_PIN_7);
-
-  	  }
-  	  else{
-  		  /* CODE INFRAROUGE */
-  	  	  //transmitMorse(morseCode,GPIO_PIN_6);
-  	  }
-  	  //HAL_Delay(3000);
-
-  	  /* USER CODE BEGIN 3 */
+    	  /* USER CODE BEGIN 3 */
+    }
+    /* USER CODE END 3 */
   }
-  /* USER CODE END 3 */
-}
 
-void Switch_Mode(void){
-	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0 && mode == 0){
-		mode = 1;
-		HAL_Delay(500);
-	}
-	else if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0 && mode == 1){
-		mode = 0;
-		HAL_Delay(500);
-	}
-	if(mode == 1){
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-	}
-}
+  void init(char* message,int maxLength){
+	  for(int i=0; i<maxLength;i++){
+		  message[i]='\0';
+	  }
+  }
 
-void convertToMorse(char* message, char* morseCode, int maxLength)
-{
-    // Define the Morse code alphabet
-    const char* morseAlphabet[] = {   "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
-		    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
-		    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
-		    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
+  void convertToMorse(char* message, char* morseCode, int maxLength)
+  {
+      // Define the Morse code alphabet
+      const char* morseAlphabet[] = {   "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
+  		    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
+  		    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
+  		    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
 
-    // Iterate through the message characters
-    int morseIndex = 0; // Index to write into the morseCode array
+      // Iterate through the message characters
+      int morseIndex = 0; // Index to write into the morseCode array
 
-    for (int i = 0; message[i] != '\0' && morseIndex < maxLength - 5; i++) { // Adjusted to avoid buffer overflow
-        // Get the uppercase representation of the character
-        char uppercaseChar = toupper(message[i]);
+      for (int i = 0; message[i] != '\0' && morseIndex < maxLength - 5; i++) { // Adjusted to avoid buffer overflow
+          // Get the uppercase representation of the character
+          char uppercaseChar = toupper(message[i]);
 
-        // If it's a space, add a space to the Morse code
-        if (uppercaseChar == ' ') {
-            strcat(morseCode, " / "); // Use '/' to represent word spacing
-            morseIndex += 3; // Move to the next position in morseCode
-        }
-        else if (isalnum(uppercaseChar)) {
-            // Check if it's an alphanumeric character
-            if (isalpha(uppercaseChar)) {
-                // Convert letters to Morse code
-                int index = uppercaseChar - 'A'; // Index for Morse code lookup
-                strcat(morseCode, morseAlphabet[index]);
-                morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
-            } else if (isdigit(uppercaseChar)) {
-                // Convert digits to Morse code
-                int index = uppercaseChar - '0' + 26; // Index for Morse code lookup
-                strcat(morseCode, morseAlphabet[index]);
-                morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
-            }
-            // Add a space after each Morse code character
-            strcat(morseCode, " ");
-            morseIndex += 1; // Move to the next position in morseCode
-        }
-    }
-    //HAL_Delay(3000);
-}
+          // If it's a space, add a space to the Morse code
+          if (uppercaseChar == ' ') {
+              strcat(morseCode, " / "); // Use '/' to represent word spacing
+              morseIndex += 3; // Move to the next position in morseCode
+          }
+          else if (isalnum(uppercaseChar)) {
+              // Check if it's an alphanumeric character
+              if (isalpha(uppercaseChar)) {
+                  // Convert letters to Morse code
+                  int index = uppercaseChar - 'A'; // Index for Morse code lookup
+                  strcat(morseCode, morseAlphabet[index]);
+                  morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+              } else if (isdigit(uppercaseChar)) {
+                  // Convert digits to Morse code
+                  int index = uppercaseChar - '0' + 26; // Index for Morse code lookup
+                  strcat(morseCode, morseAlphabet[index]);
+                  morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+              }
+              // Add a space after each Morse code character
+              strcat(morseCode, " ");
+              morseIndex += 1; // Move to the next position in morseCode
+          }
+      }
+      //HAL_Delay(3000);
+  }
 
-void transmitMorse(char* morseCode,uint16_t pin){
-    // Implement Morse code transmission logic here
-    // You need to control the buzzer to produce the Morse code signals
-    // Adjust the delay according to Morse code timing
+  void transmitMorse(char* morseCode,uint16_t pin){
+      // Implement Morse code transmission logic here
+      // You need to control the buzzer to produce the Morse code signals
+      // Adjust the delay according to Morse code timing
 
-    int i = 0;
-    while (morseCode[i] != '\0') {
-        if (morseCode[i] == '.') {
-            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dot
-            HAL_Delay(100); // Adjust delay for dot
-            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
-            HAL_Delay(500); // Delay between dot and next signal
-        } else if (morseCode[i] == '-') {
-            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dash
-            HAL_Delay(300); // Adjust delay for dash
-            HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
-            HAL_Delay(500); // Delay between dash and next signal
-        } else if (morseCode[i] == ' ') {
-            // Delay for character gap
-            HAL_Delay(1000); // Adjust delay for character gap
-        } else if (morseCode[i] == '/') {
-            // Delay for word gap
-            HAL_Delay(700); // Adjust delay for word gap
-        }
-        i++;
-    }
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  HAL_UART_Receive_IT(&huart2, (uint8_t *) receivedMessage, 10);
-}
+      int i = 0;
+      while (morseCode[i] != '\0') {
+          if (morseCode[i] == '.') {
+              HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dot
+              HAL_Delay(100); // Adjust delay for dot
+              HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
+              HAL_Delay(500); // Delay between dot and next signal
+          } else if (morseCode[i] == '-') {
+              HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_SET); // Turn on buzzer for dash
+              HAL_Delay(300); // Adjust delay for dash
+              HAL_GPIO_WritePin(GPIOA, pin, GPIO_PIN_RESET); // Turn off buzzer
+              HAL_Delay(500); // Delay between dash and next signal
+          } else if (morseCode[i] == ' ') {
+              // Delay for character gap
+              HAL_Delay(1000); // Adjust delay for character gap
+          } else if (morseCode[i] == '/') {
+              // Delay for word gap
+              HAL_Delay(700); // Adjust delay for word gap
+          }
+          i++;
+      }
+  }
 
 /**
   * @brief System Clock Configuration
@@ -367,7 +349,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -377,6 +359,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
