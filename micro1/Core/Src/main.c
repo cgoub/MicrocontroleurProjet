@@ -46,9 +46,9 @@ DAC_HandleTypeDef hdac;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-int MODE = 0;
-char receivedMessage[10]="";
-char morseCode[50]="";
+int MODE = 0; //to change between the buzzer and the light
+char receivedMessage[10]=""; //the message
+char morseCode[50]=""; //the message in morse
 
 /* USER CODE END PV */
 
@@ -63,7 +63,6 @@ void convertToMorse(char*, char* , int );
 void transmitSound(char*);
 void transmitLed(char*);
 void init(char* ,int );
-//void HAL_UART_RxCpltCallback(UART_HandleTypeDef );
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -111,7 +110,7 @@ int main(void)
     while (1){
         /* USER CODE END WHILE */
 
-    	/* réception du message */
+    	/* receiving the message */
     	init(receivedMessage,10);
     	HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,10,5000);
     	if(receivedMessage[0]!='\0'){
@@ -120,7 +119,7 @@ int main(void)
     	}
 
     	if(MODE==1){
-    		/* CODE SON */
+    		/* CODE SOUND */
     		transmitSound(morseCode);
     	}
     	else{
@@ -139,49 +138,58 @@ int main(void)
 	  }
   }
 
+
+/**
+ * This function converts a string message to Morse code.
+ * @param message The string message to be converted.
+ * @param morseCode The buffer to store the Morse code.
+ * @param maxLength The maximum length of the Morse code buffer.
+ */
   void convertToMorse(char* message, char* morseCode, int maxLength)
   {
-      // Define the Morse code alphabet
-      const char* morseAlphabet[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",".---", "-.-", ".-..",
-			  "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
-              "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----."};
+      // the Morse code alphabet
+      const char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
+			    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
+			    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
+			    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
 
       // Iterate through the message characters
-      int morseIndex = 0; // Index to write into the morseCode array
+      int morseIndex = 0;
 
-      for (int i = 0; message[i] != '\0' && morseIndex < maxLength - 5; i++) { // Adjusted to avoid buffer overflow
+      for (int i = 0; message[i] != '\0' && morseIndex < maxLength - 5; i++) {
           // Get the uppercase representation of the character
           char uppercaseChar = toupper(message[i]);
 
           // If it's a space, add a space to the Morse code
           if (uppercaseChar == ' ') {
-              strcat(morseCode, "/"); // Use '/' to represent word spacing
+              strcat(morseCode, "/"); // '/' to represent word spacing
               morseIndex += 3; // Move to the next position in morseCode
           }
           else if (isalnum(uppercaseChar)) {
               // Check if it's an alphanumeric character
               if (isalpha(uppercaseChar)) {
                   // Convert letters to Morse code
-                  int index = uppercaseChar - 'A'; // Index for Morse code lookup
+                  int index = uppercaseChar - 'A'; // Index for Morse code
                   strcat(morseCode, morseAlphabet[index]);
-                  morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+                  morseIndex += strlen(morseAlphabet[index]);
               } else if (isdigit(uppercaseChar)) {
                   // Convert digits to Morse code
-                  int index = uppercaseChar - '0' + 26; // Index for Morse code lookup
+                  int index = uppercaseChar - '0' + 26; // Index for Morse code for number since they start after the 26 letter
                   strcat(morseCode, morseAlphabet[index]);
-                  morseIndex += strlen(morseAlphabet[index]); // Move to the next position in morseCode
+                  morseIndex += strlen(morseAlphabet[index]);
               }
               // Add a space after each Morse code character
               strcat(morseCode, " ");
-              morseIndex += 1; // Move to the next position in morseCode
+              morseIndex += 1;
           }
       }
-      //HAL_Delay(3000);
   }
 
+/**
+ * This function transmits the Morse code to the buzzer.
+ * @param morseCode The Morse code to be transmitted.
+ */
   void transmitSound(char* morseCode){
-      // Implement Morse code transmission logic here
-      // You need to control the buzzer to produce the Morse code signals
 
       int i = 0;
       while (morseCode[i] != '\0') {
@@ -205,10 +213,12 @@ int main(void)
       }
   }
 
-  void transmitLed(char* morseCode){
-      // Implement Morse code transmission logic here
-      // You need to control the Led to produce the Morse code signals
 
+/**
+ * This function transmits the Morse code to the LED.
+ * @param morseCode The Morse code to be transmitted.
+ */
+  void transmitLed(char* morseCode){
       int i = 0;
       while (morseCode[i] != '\0') {
 		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
@@ -220,8 +230,8 @@ int main(void)
           } else if (morseCode[i] == '-') {
               HAL_Delay(800); // Delay for a dash
           } else if (morseCode[i] == ' ') {
-              // Delay for word gap
-              HAL_Delay(900); // Delay for word gap
+              // Delay for charecter gap
+              HAL_Delay(900); // Delay for charecter gap
           }
           else if (morseCode[i] == '/') {
               // Delay for word gap
