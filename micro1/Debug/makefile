@@ -60,8 +60,8 @@ all: main-build
 main-build: micro1.elf secondary-outputs
 
 # Tool invocations
-micro1.elf micro1.map: $(OBJS) $(USER_OBJS) C:\Users\fayca\OneDrive\Bureau\MicrocontroleurProjet-Emetteur\micro1\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "micro1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\fayca\OneDrive\Bureau\MicrocontroleurProjet-Emetteur\micro1\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="micro1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+micro1.elf micro1.map: $(OBJS) $(USER_OBJS) G:\Autres\ ordinateurs\Mon\ ordinateur\ portable\Cours\L3\ Info\S6\Intro\ Micro\ Controleur\TD\MicrocontroleurProjet-Emetteur\micro1\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "micro1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"G:\Autres ordinateurs\Mon ordinateur portable\Cours\L3 Info\S6\Intro Micro Controleur\TD\MicrocontroleurProjet-Emetteur\micro1\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="micro1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

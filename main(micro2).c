@@ -36,7 +36,10 @@
 /* USER CODE BEGIN PD */
 #define DOT_THRESHOLD   110     // Adjust according to your requirements
 #define DASH_THRESHOLD  310     // Adjust according to your requirements
-#define PAUSE_THRESHOLD 700
+#define PAUSE_THRESHOLD 1000
+#define PAUSE_THRESHOLD_HIGH 1050
+#define PAUSE_THRESHOLD_LOW 950
+#define GAP_THRESHOLD 1310
 #define THRESHOLD_low (uint16_t)1300
 #define THRESHOLD_high (uint16_t)1700
 /* USER CODE END PD */
@@ -72,7 +75,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
-void decodeMorse(char* , int);
+void decodeMorse(char* message, int length);
 int isSoundSignalDetected();
 int isLedSignalDetected();
 /* USER CODE END PFP */
@@ -130,7 +133,7 @@ int main(void)
       {
 		  notStartTime = HAL_GetTick();
 		  int silence_duration = notStartTime - endTime;
-		  if (!haveConverted && (silence_duration >= PAUSE_THRESHOLD || rx_index >= sizeof(rx_buffer)))
+		  if (!haveConverted && (silence_duration >= 2000 || rx_index >= sizeof(rx_buffer)))
 		  {
 
 			  // Decode the Morse code character
@@ -167,6 +170,17 @@ int main(void)
 			  /* Calculate duration of signal */
 			  duration = (endTime - startTime);
 
+			  if (silence_duration > PAUSE_THRESHOLD_LOW && silence_duration < PAUSE_THRESHOLD_HIGH)
+			  {
+				  rx_buffer[rx_index] = ' ';
+				  rx_index++;
+			  }
+			  else if (silence_duration > PAUSE_THRESHOLD_HIGH)
+			  {
+				  rx_buffer[rx_index] = '/';
+				  rx_index++;
+			  }
+
 			  if (duration < DOT_THRESHOLD)
 			  {
 				  rx_buffer[rx_index] = '.';
@@ -177,11 +191,12 @@ int main(void)
 				  rx_buffer[rx_index] = '-';
 				  rx_index++;
 			  }
+			 //printf("%d\r\n", rx_index);
 
 			  // Check if the Morse code character is complete
 
 		  }
-		 if (isLedSignalDetected()) {
+		 if (0&&isLedSignalDetected()) {
 			  /* Record end time of signal */
 
 			  startTime = notStartTime;
@@ -243,43 +258,46 @@ int main(void)
   }
 
 
-	void decodeMorse(char * message, int length) {
-	      //printf("%s\r\n", message);
-	      char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
-	                "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
-	                ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
-	                ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
+  void decodeMorse(char *message, int length)
+  {
+      //printf("%s\r\n", message);
+	  char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
+			    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
+			    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
+			    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
 
-	      char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
+      char res[]="";
+      char decoded_message[length + 1]; // Maximum possible length of decoded message
 
-	      char decoded_message[length + 1]; // Maximum possible length of decoded message
+      int decoded_index = 0; // Index to keep track of the position in the decoded message
+      int k;
+      int j=0;
+      int i=0;
 
-	      int decoded_index = 0; // Index to keep track of the position in the decoded message
-
-	      for (int i = 0; i <= length; i++)
-	      {
-	          if (message[i] == ' ' || message[i] == '\0') // Check for space or end of string
-	          {
-	              // Indicates the end of a Morse code character
-	              decoded_message[decoded_index] = '\0'; // Null terminate the decoded message
-	              for (int j = 0; j < sizeof(morseAlphabet) / sizeof(morseAlphabet[0]); j++)
-	              {
-	                  if (strcmp(decoded_message, morseAlphabet[j]) == 0) // Compare using strcmp
-	                  {
-	                      // Store the corresponding character
-	                      printf("%c", alphabet[j]);
-	                      decoded_index = 0;
-	                      break;
-	                  }
-	              }
-	          }
-	          else
-	          {
-	              decoded_message[decoded_index++] = message[i];
-	          }
-	      }
-	      printf("\r\n");
-	  }
+      while(i<length){
+		  k=0;
+		  decoded_index = 0;
+    	  if (message[i] == ' '){
+    		  i++;
+    	  }
+    	  else if (message[i] == '/'){
+	    		  printf(" ");
+    	  }
+    	  else{
+    		  for(decoded_index=0;decoded_index<6;decoded_index++){
+    			  decoded_message[decoded_index] = message[i];
+    			  i++;
+    		  }
+			  while(k < sizeof(morseAlphabet) / sizeof(morseAlphabet[0]) && strcmp(decoded_message, morseAlphabet[k]) != 0){
+				  k++;
+			  }
+			  res[j]=alphabet[k];
+			  decoded_index = 0;
+    	  }
+      }
+      printf("%s\r\n",res);
+  }
 
 
 
