@@ -18,13 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdio.h>
-#include <string.h>
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-/* Buffer to store received data */
-/* Buffer to store received data */
-
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +35,10 @@
 /* USER CODE BEGIN PD */
 #define DOT_THRESHOLD   110     // Adjust according to your requirements
 #define DASH_THRESHOLD  310     // Adjust according to your requirements
-#define PAUSE_THRESHOLD 700
+#define PAUSE_THRESHOLD 1000
+#define PAUSE_THRESHOLD_HIGH 1050
+#define PAUSE_THRESHOLD_LOW 950
+#define GAP_THRESHOLD 1310
 #define THRESHOLD_low (uint16_t)1300
 #define THRESHOLD_high (uint16_t)1700
 /* USER CODE END PD */
@@ -61,9 +63,11 @@ uint32_t notStartTime=0;
 uint32_t endTime= 0;
 uint32_t duration=0;
 
+int MODE=0;
 int rx_index =0;
-int led=0;
+
 int haveConverted = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +76,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
-void decodeMorse(char* , int);
+void decodeMorse(char* , int );
 int isSoundSignalDetected();
 int isLedSignalDetected();
 /* USER CODE END PFP */
@@ -88,8 +92,6 @@ printf
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 /* USER CODE END 0 */
-
-
 
 /**
   * @brief  The application entry point.
@@ -125,12 +127,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
+  uint16_t led=1;
   while (1)
       {
+	  if(MODE==1){
 		  notStartTime = HAL_GetTick();
 		  int silence_duration = notStartTime - endTime;
-		  if (!haveConverted && (silence_duration >= PAUSE_THRESHOLD || rx_index >= sizeof(rx_buffer)))
+		  if (!haveConverted && (silence_duration >= 2000 || rx_index >= sizeof(rx_buffer)))
 		  {
 
 			  // Decode the Morse code character
@@ -167,6 +170,17 @@ int main(void)
 			  /* Calculate duration of signal */
 			  duration = (endTime - startTime);
 
+			  if (silence_duration > PAUSE_THRESHOLD_LOW && silence_duration < PAUSE_THRESHOLD_HIGH)
+			  {
+				  rx_buffer[rx_index] = ' ';
+				  rx_index++;
+			  }
+			  else if (silence_duration > PAUSE_THRESHOLD_HIGH && rx_index!=0)
+			  {
+				  rx_buffer[rx_index] = '/';
+				  rx_index++;
+			  }
+
 			  if (duration < DOT_THRESHOLD)
 			  {
 				  rx_buffer[rx_index] = '.';
@@ -177,46 +191,69 @@ int main(void)
 				  rx_buffer[rx_index] = '-';
 				  rx_index++;
 			  }
-
-			  // Check if the Morse code character is complete
-
 		  }
-		 if (isLedSignalDetected()) {
+		  HAL_Delay(5);
+		  HAL_ADC_Stop(&hadc3);
+	  }
+	  if(MODE==0){
+		  //printf("%ld\r\n",HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8));
+		  if (!led) {
 			  /* Record end time of signal */
-
-			  startTime = notStartTime;
+			  //startTime = notStartTime;
 			  led=1;
 			  while (led){
-				  led=!isLedSignalDetected();
+				  led=HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
 			  }
-			  HAL_Delay(250);
+			  HAL_Delay(100);
 			  endTime = HAL_GetTick();
 
 			  /* Calculate duration of signal */
-			  duration = (endTime - startTime - 250);
-			  if (duration>690 && duration < 710)
-			  {
-				  rx_buffer[rx_index] = '.';
-				  rx_index++;
-			  }
-			  else if (duration>890 &&duration < 810)
-			  {
-				  rx_buffer[rx_index] = '-';
-				  rx_index++;
-			  }
-			  else if (duration>990 &&duration < 910)
-			  {
-				  rx_buffer[rx_index] = ' ';
-				  rx_index++;
-			  }
+			  duration = endTime - startTime - 100;
+			  HAL_Delay(5);
+			  //if (duration>200){
+				  if (duration> 290 && duration < 310)
+				  {
+					  rx_buffer[rx_index] = '.';
+					  rx_index++;
+				  }
+				  else if (duration>390 &&duration < 410)
+				  {
+					  rx_buffer[rx_index] = '-';
+					  rx_index++;
+				  }
+				  else if (duration>490 &&duration < 510)
+				  {
+					  rx_buffer[rx_index] = ' ';
+					  rx_index++;
+				  }
+				  else if (duration>590 &&duration < 610)
+				  {
+					  rx_buffer[rx_index] = '/';
+					  rx_index++;
+				  }
+				  else
+				  {
+					  // Decode the Morse code character
+					  decodeMorse(rx_buffer, rx_index);
+					  // Reset the message buffer index
 
+					  for(int i=0;i<rx_index;i++){
+						  rx_buffer[i] = '\0';
+					  }
+					  rx_index = 0;
+				  //}
+			  }
 			  startTime = endTime;
 		  }
 		  //decodeMorse(rx_buffer, rx_index);
-		  HAL_Delay(2);
-		  HAL_ADC_Stop(&hadc3);
-      }
-  }
+		  else{
+			  led = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+			  HAL_Delay(100);
+			  startTime = HAL_GetTick();
+		  }
+	  }
+   }
+}
 
   /* Function to detect the presence of a sound signal */
 	int isSoundSignalDetected() {
@@ -239,48 +276,48 @@ int main(void)
   }
 
 	int isLedSignalDetected() {
-		return !HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+		return !HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
   }
 
 
-	void decodeMorse(char * message, int length) {
+	void decodeMorse(char *message, int length)
+	  {
 	      //printf("%s\r\n", message);
-	      char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
-	                "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
-	                ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
-	                ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
+		  char* morseAlphabet[] = {     "......", ".....-", "....-.", "....--", "...-..", "...-.-", "...--.", "...---", "..-...", "..-..-",
+				    "..-.-.", "..-.--", "..--..", "..--.-", "..----", ".-....", ".-...-", ".-..-.", ".-..--", ".-.-..",
+				    ".-.-.-", ".-.--.", ".-.---", ".--...", ".--..-", ".--.-.", ".--.--", ".---..", ".---.-", ".----.",
+				    ".-----", "-.....", "-....-", "-...-.", "-...--", "-..-.."};
 
 	      char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
 	      char decoded_message[length + 1]; // Maximum possible length of decoded message
 
 	      int decoded_index = 0; // Index to keep track of the position in the decoded message
+	      int k;
+	      int i=0;
 
-	      for (int i = 0; i <= length; i++)
-	      {
-	          if (message[i] == ' ' || message[i] == '\0') // Check for space or end of string
-	          {
-	              // Indicates the end of a Morse code character
-	              decoded_message[decoded_index] = '\0'; // Null terminate the decoded message
-	              for (int j = 0; j < sizeof(morseAlphabet) / sizeof(morseAlphabet[0]); j++)
-	              {
-	                  if (strcmp(decoded_message, morseAlphabet[j]) == 0) // Compare using strcmp
-	                  {
-	                      // Store the corresponding character
-	                      printf("%c", alphabet[j]);
-	                      decoded_index = 0;
-	                      break;
-	                  }
-	              }
-	          }
-	          else
-	          {
-	              decoded_message[decoded_index++] = message[i];
-	          }
+	      while(i<length){
+			  k=0;
+			  decoded_index = 0;
+	    	  if (message[i] == ' '){
+	    		  i++;
+	    	  }
+	    	  else if (message[i] == '/'){
+		    		printf(" ");
+	    		    i++;
+	    	  }
+	    	  else{
+	    		  for(decoded_index=0;decoded_index<6;decoded_index++){
+	    			  decoded_message[decoded_index] = message[i];
+	    			  i++;
+	    		  }
+				  while(k < sizeof(morseAlphabet) / sizeof(morseAlphabet[0]) && strcmp(decoded_message, morseAlphabet[k]) != 0){
+					k++;
+				  }
+				  printf("%c",alphabet[k]);
+	    	  }
 	      }
 	      printf("\r\n");
 	  }
-
 
 
   PUTCHAR_PROTOTYPE
@@ -291,7 +328,6 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
   }
-
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -441,9 +477,12 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -455,9 +494,20 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA5 */
   GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -474,11 +524,11 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+    /* User can add his own implementation to report the HAL error return state */
+    __disable_irq();
+    while (1)
+    {
+    }
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -493,8 +543,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    /* User can add his own implementation to report the file name and line number,
+       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

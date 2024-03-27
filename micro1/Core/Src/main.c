@@ -47,8 +47,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 int MODE = 0; //to change between the buzzer and the light
-char receivedMessage[10]=""; //the message
-char morseCode[50]=""; //the message in morse
+char receivedMessage[20]=""; //the message
+char morseCode[70]=""; //the message in morse
 
 /* USER CODE END PV */
 
@@ -112,9 +112,9 @@ int main(void)
 
     	/* receiving the message */
     	init(receivedMessage,10);
-    	HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,10,5000);
+    	HAL_UART_Receive(&huart2,(uint8_t *) receivedMessage,20,5000);
     	if(receivedMessage[0]!='\0'){
-        	init(morseCode,50);
+        	init(morseCode,70);
         	convertToMorse(receivedMessage, morseCode, sizeof(morseCode));
     	}
 
@@ -221,26 +221,29 @@ int main(void)
   void transmitLed(char* morseCode){
       int i = 0;
       while (morseCode[i] != '\0') {
-		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
-		  HAL_Delay(250);
-		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
+		  HAL_Delay(100);
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
 
           if (morseCode[i] == '.') {
-              HAL_Delay(700); // Delay for a dot
+              HAL_Delay(300); // Delay for a dot
           } else if (morseCode[i] == '-') {
-              HAL_Delay(800); // Delay for a dash
+              HAL_Delay(400); // Delay for a dash
           } else if (morseCode[i] == ' ') {
               // Delay for charecter gap
-              HAL_Delay(900); // Delay for charecter gap
+              HAL_Delay(500); // Delay for charecter gap
           }
           else if (morseCode[i] == '/') {
               // Delay for word gap
-              HAL_Delay(900); // Delay for word gap
+              HAL_Delay(600); // Delay for word gap
           }
           i++;
       }
+      HAL_Delay(700); // Delay for word gap
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
+	  HAL_Delay(250);
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
   }
-
 /**
   * @brief System Clock Configuration
   * @retval None
