@@ -130,7 +130,7 @@ int main(void)
   uint16_t led=1;
   while (1)
       {
-	  if(MODE==1){
+	  if(MODE==1){ //Sound mode
 		  notStartTime = HAL_GetTick();
 		  int silence_duration = notStartTime - endTime;
 		  if (!haveConverted && (silence_duration >= 2000 || rx_index >= sizeof(rx_buffer)))
@@ -170,22 +170,26 @@ int main(void)
 			  /* Calculate duration of signal */
 			  duration = (endTime - startTime);
 
+			  /* test if the silence represent a pause between 2 characters*/
 			  if (silence_duration > PAUSE_THRESHOLD_LOW && silence_duration < PAUSE_THRESHOLD_HIGH)
 			  {
 				  rx_buffer[rx_index] = ' ';
 				  rx_index++;
 			  }
+			  /* test if the silence represent a pause between 2 words */
 			  else if (silence_duration > PAUSE_THRESHOLD_HIGH && rx_index!=0)
 			  {
 				  rx_buffer[rx_index] = '/';
 				  rx_index++;
 			  }
 
+			  /* test if the duration of the signal represent a dot*/
 			  if (duration < DOT_THRESHOLD)
 			  {
 				  rx_buffer[rx_index] = '.';
 				  rx_index++;
 			  }
+			  /* test if the duration of the signal represent a dash*/
 			  else if (duration < DASH_THRESHOLD)
 			  {
 				  rx_buffer[rx_index] = '-';
@@ -195,60 +199,54 @@ int main(void)
 		  HAL_Delay(5);
 		  HAL_ADC_Stop(&hadc3);
 	  }
-	  if(MODE==0){
-		  //printf("%ld\r\n",HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8));
+	  if(MODE==0){ //Led mode
 		  if (!led) {
-			  /* Record end time of signal */
-			  //startTime = notStartTime;
 			  led=1;
-			  while (led){
+			  while (led){ //waiting while the Led is off
 				  led=HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
 			  }
-			  HAL_Delay(100);
-			  endTime = HAL_GetTick();
+			  HAL_Delay(100); // When the led is on we wait a little more to calibrate
+			  endTime = HAL_GetTick(); // recuperation of the time the led turn on again
 
 			  /* Calculate duration of signal */
-			  duration = endTime - startTime - 100;
+			  duration = endTime - startTime - 100; //getting the time the led was off
 			  HAL_Delay(5);
-			  //if (duration>200){
-				  if (duration> 290 && duration < 310)
-				  {
-					  rx_buffer[rx_index] = '.';
-					  rx_index++;
-				  }
-				  else if (duration>390 &&duration < 410)
-				  {
-					  rx_buffer[rx_index] = '-';
-					  rx_index++;
-				  }
-				  else if (duration>490 &&duration < 510)
-				  {
-					  rx_buffer[rx_index] = ' ';
-					  rx_index++;
-				  }
-				  else if (duration>590 &&duration < 610)
-				  {
-					  rx_buffer[rx_index] = '/';
-					  rx_index++;
-				  }
-				  else
-				  {
-					  // Decode the Morse code character
-					  decodeMorse(rx_buffer, rx_index);
-					  // Reset the message buffer index
+			  if (duration> 290 && duration < 310) // 300ms is the time of a "."
+			  {
+				  rx_buffer[rx_index] = '.';
+				  rx_index++;
+			  }
+			  else if (duration>390 &&duration < 410) // 400ms is the time of a "-"
+			  {
+				  rx_buffer[rx_index] = '-';
+				  rx_index++;
+			  }
+			  else if (duration>490 &&duration < 510) //500ms is the time of a space between 2 character
+			  {
+				  rx_buffer[rx_index] = ' ';
+				  rx_index++;
+			  }
+			  else if (duration>590 &&duration < 610) //600ms is the time of a space between 2 words
+			  {
+				  rx_buffer[rx_index] = '/';
+				  rx_index++;
+			  }
+			  else
+			  {
+				  // Decode the Morse code character
+				  decodeMorse(rx_buffer, rx_index);
+				  // Reset the message buffer index
 
-					  for(int i=0;i<rx_index;i++){
-						  rx_buffer[i] = '\0';
-					  }
-					  rx_index = 0;
-				  //}
+				  for(int i=0;i<rx_index;i++){
+					  rx_buffer[i] = '\0';
+				  }
+				  rx_index = 0;
 			  }
 			  startTime = endTime;
 		  }
-		  //decodeMorse(rx_buffer, rx_index);
 		  else{
 			  led = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
-			  HAL_Delay(100);
+			  HAL_Delay(100); // Wait for the moment the Led turn off
 			  startTime = HAL_GetTick();
 		  }
 	  }

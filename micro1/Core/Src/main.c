@@ -231,7 +231,7 @@ int main(void)
               HAL_Delay(400); // Delay for a dash
           } else if (morseCode[i] == ' ') {
               // Delay for charecter gap
-              HAL_Delay(500); // Delay for charecter gap
+              HAL_Delay(500); // Delay for character gap
           }
           else if (morseCode[i] == '/') {
               // Delay for word gap
